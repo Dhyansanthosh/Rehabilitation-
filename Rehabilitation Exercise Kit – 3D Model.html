@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rehabilitation Exercise Kit – 3D Model</title>
+<style>
+:root{--bg:#eef3f2;--surface:#fff;--ink:#16302f;--muted:#566b69;--line:#c9d6d4;--accent:#0f766e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b1a;--surface:#172625;--ink:#e6f1ef;--muted:#9bb3b0;--line:#2c4442;--accent:#4fd1c5}}
+:root[data-theme="dark"]{--bg:#0f1b1a;--surface:#172625;--ink:#e6f1ef;--muted:#9bb3b0;--line:#2c4442;--accent:#4fd1c5}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#wrap{position:relative;height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.bar{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+button{font:inherit;font-size:15px;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 13px;min-height:44px;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:700}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.title{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:14px;right:14px;pointer-events:none}
+.title h1{margin:0;font-size:clamp(1rem,2.6vw,1.4rem)}
+.title p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+#bSim{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:5;background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;font-size:16px;padding:12px 18px}
+#bSim[aria-pressed="true"]{background:var(--surface);color:var(--accent)}
+.title{right:190px!important}
+#tag{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.9rem;max-width:260px;display:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="c" aria-label="3D model of the rehabilitation exercise kit. Drag to rotate, scroll or pinch to zoom."></canvas>
+<div class="title"><h1>Rehabilitation Exercise Kit: 3D Model</h1><p>Drag to rotate, scroll or pinch to zoom, tap a part to identify it.</p></div>
+<div id="tag" aria-live="polite"></div>
+<button id="bSim" aria-pressed="false">Simulate patient</button>
+<div class="bar">
+<button id="bEx">Exercise: Auto</button>
+<button id="bAnim" aria-pressed="true">Animate</button>
+<button id="bShell" aria-pressed="true">Clear shell</button>
+<button id="bExp" aria-pressed="false">Exploded view</button>
+<button data-v="iso">Isometric</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="top">Top</button>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+var cv=document.getElementById("c");
+var R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+var S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,1,.1,100);
+cam.position.set(7,5.5,8);
+var ctl=new THREE.OrbitControls(cam,cv);ctl.target.set(0,2.2,0);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI*.55;ctl.minDistance=4;ctl.maxDistance=20;
+S.add(new THREE.HemisphereLight(0xffffff,0x6a8a88,.85));
+var dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(5,9,6);S.add(dl);
+function M(c,o){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.45,metalness:.25},o||{}))}
+var teal=0x0f766e,steel=0xaab8b7;
+var parts={},names={};
+function reg(o,n){o.userData.name=n;o.traverse(function(k){k.userData.name=n});return o}
+// base
+var base=reg(new THREE.Mesh(new THREE.CylinderGeometry(2.15,2.2,.2,48),M(0x6b7f7e)),"Base frame");base.position.y=-.1;S.add(base);
+// shell
+var shellMat=new THREE.MeshPhysicalMaterial({color:0xbfe3e0,transparent:true,opacity:.22,roughness:.1,side:THREE.DoubleSide,depthWrite:false});
+var shell=reg(new THREE.Mesh(new THREE.CylinderGeometry(2,2,3,64,1,true),shellMat),"Transparent cylindrical housing");shell.position.y=1.5;S.add(shell);
+var rim=new THREE.Mesh(new THREE.TorusGeometry(2,.03,8,64),M(0x5d7f7c));rim.rotation.x=Math.PI/2;rim.position.y=0;S.add(rim);
+// lid group
+var lid=new THREE.Group();S.add(lid);lid.position.y=3;
+var lidM=reg(new THREE.Mesh(new THREE.CylinderGeometry(2.05,2.05,.2,64),M(0xdfe9e8)),"Control lid");lid.add(lidM);
+var leds=[],cols=[0xf2c500,0x2e9e4f,0x2f5fc4],lab=["Yellow LED: ready","Green LED: running","Blue LED: mode"];
+cols.forEach(function(c,i){var l=reg(new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.08,24),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.5})),"LED status indicator ("+lab[i]+")");l.position.set((i-1)*.7,.14,1.0);lid.add(l);leds.push(l);
+var b=reg(new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.08,24),M(0xf3f6f6)),"User control button ("+["Start","Reset","Mode"][i]+")");b.position.set((i-1)*.7,.14,1.5);lid.add(b)});
+// column + handles
+var col=new THREE.Group();col.position.y=3.1;S.add(col);
+var post=reg(new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,3.6,24),M(steel)),"Hand rotation column");post.position.set(0,-.2,-.5);col.add(post);
+var hand=new THREE.Group();hand.position.set(0,1.3,.5);col.add(hand);
+var axle=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.5,16),M(0x335a57));axle.rotation.z=Math.PI/2;hand.add(axle);
+var strut=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,1.0),M(steel));strut.position.set(0,1.3,0);col.add(strut);
+var hpedals=[];[-1,1].forEach(function(s){var a=reg(new THREE.Mesh(new THREE.BoxGeometry(.1,.4,.1),M(steel)),"Hand pedal crank arm");a.position.set(s*.3,s*.2,0);hand.add(a);
+var p=reg(new THREE.Mesh(new THREE.BoxGeometry(.5,.07,.34),M(teal)),"Hand pedal: adjustable resistance mechanism");p.position.set(s*.55,s*.4,0);hand.add(p);hpedals.push(p)});
+// roller
+var rollG=new THREE.Group();rollG.position.y=1.9;S.add(rollG);
+var rol=new THREE.Group();rollG.add(rol);rollG.position.z=.1;
+var ax=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.5,16),M(0x335a57));ax.rotation.z=Math.PI/2;rol.add(ax);
+var pedals=[];[-1,1].forEach(function(s){var a=reg(new THREE.Mesh(new THREE.BoxGeometry(.1,.4,.1),M(steel)),"Leg pedal crank arm");a.position.set(s*.3,s*.2,0);rol.add(a);
+var p=reg(new THREE.Mesh(new THREE.BoxGeometry(.5,.07,.34),M(teal)),"Leg pedal: friction resistance mechanism");p.position.set(s*.55,s*.4,0);rol.add(p);pedals.push(p)});
+function fixPed(){pedals.forEach(function(p){p.rotation.x=-rol.rotation.x});hpedals.forEach(function(p){p.rotation.x=-hand.rotation.x})}
+// foot plate
+var plateG=new THREE.Group();plateG.position.y=.55;S.add(plateG);
+var plate=reg(new THREE.Mesh(new THREE.BoxGeometry(2.6,.07,1.9),new THREE.MeshPhysicalMaterial({color:0xe9f4f3,transparent:true,opacity:.85,roughness:.2})),"Foot exercise plate: multidirectional movement base");plateG.add(plate);
+var fm=M(0x7c9a97);
+[-.5,.5].forEach(function(x){var s=reg(new THREE.Mesh(new THREE.SphereGeometry(1,24,12),fm),"Foot exercise plate: multidirectional movement base");s.scale.set(.2,.02,.5);s.position.set(x,.045,.1);plateG.add(s);
+var t=reg(new THREE.Mesh(new THREE.SphereGeometry(1,16,8),fm),"Foot exercise plate: multidirectional movement base");t.scale.set(.17,.02,.12);t.position.set(x,.045,-.5);plateG.add(t)});
+var piez=[];[[-1.1,-.75],[1.1,-.75],[-1.1,.75],[1.1,.75]].forEach(function(p){var z=reg(new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.05,20),new THREE.MeshStandardMaterial({color:0xe08a00,emissive:0xe08a00,emissiveIntensity:.2})),"Piezoelectric sensor array");z.position.set(p[0],-.06,p[1]);plateG.add(z);piez.push(z)});
+var pivot=reg(new THREE.Mesh(new THREE.SphereGeometry(.2,20,16),M(0x335a57)),"Plate pivot joint");pivot.position.y=.3;S.add(pivot);
+var stem=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.3,12),M(steel));stem.position.y=.15;S.add(stem);
+// human patient
+var H=new THREE.Group();H.visible=false;S.add(H);
+var V3=THREE.Vector3,UP=new V3(0,1,0),_d=new V3();
+function cyl(r,c){var m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,14),M(c,{roughness:.8,metalness:0}));H.add(m);return m}
+function ball(r,c){var m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),M(c,{roughness:.8,metalness:0}));H.add(m);return m}
+var skin=0xe0b08c,shirt=0x3b6ea8,pants=0x55586a;
+var torso=cyl(.55,shirt),neck=cyl(.14,skin),head=ball(.42,skin),hair=ball(.43,0xe6e6e6),pelv=ball(.58,pants);
+function mk(){var f=new THREE.Mesh(new THREE.BoxGeometry(.42,.14,.9),M(0x2b2b33,{metalness:0}));H.add(f);return{th:cyl(.26,pants),sh:cyl(.2,pants),kn:ball(.23,pants),ft:f,sj:ball(.2,shirt),ua:cyl(.17,shirt),fa:cyl(.14,skin),el:ball(.17,shirt),hd:ball(.17,skin)}}
+var limbs=[mk(),mk()];
+var chair=new THREE.Group();chair.visible=false;S.add(chair);
+function bx(w,h,d,x,y,z){var k=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(0x8a6a4a,{roughness:.8,metalness:0}));k.position.set(x,y,z);chair.add(k)}
+bx(1.7,.14,1.6,0,1.45,3);bx(1.7,1.9,.12,0,2.4,3.75);
+[[-.75,-.7],[.75,-.7],[-.75,.7],[.75,.7]].forEach(function(p){bx(.12,1.4,.12,p[0],.7,3+p[1])});
+function seg(m,a,b){m.position.copy(a).add(b).multiplyScalar(.5);_d.subVectors(b,a);var l=_d.length();m.scale.set(1,l,1);m.quaternion.setFromUnitVectors(UP,_d.normalize())}
+function ik(a,p,l1,l2,pole){var d=p.clone().sub(a),dist=Math.min(d.length(),l1+l2-.001),dir=d.normalize();
+var x=(l1*l1-l2*l2+dist*dist)/(2*dist),h=Math.sqrt(Math.max(0,l1*l1-x*x));
+var pp=pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
+var mid=a.clone().add(dir.clone().multiplyScalar(x)).add(pp.multiplyScalar(h));
+return[mid,a.clone().add(dir.multiplyScalar(dist))]}
+var sim=false,st=0,t0=0,exSel=0,curM=-1,amp=0,ph2=0;
+var exNames=["Hand pedaling","Leg pedaling","Foot plate up and down"];
+function human(dt){
+st+=dt;t0+=dt;
+var W=3.6,SI=1.2,w=Math.min(st/W,1),b=Math.min(Math.max((st-W)/SI,0),1);b=b*b*(3-2*b);
+var ex=Math.max(0,st-W-SI),m=exSel?exSel-1:Math.floor(ex/10)%3;
+if(m!==curM){curM=m;amp=0}
+if(b>=1){amp=Math.min(1,amp+dt*.8);ph2+=dt}
+if(b>=1&&m===0)hand.rotation.x-=dt*1.6*amp;if(b>=1&&m===1)rol.rotation.x-=dt*2.2*amp;
+fixPed();rollG.updateWorldMatrix(true,true);
+var tx=m===2?Math.sin(ph2*1.6)*.26*amp:0,tz=0,k=Math.min(1,dt*8);
+plateG.rotation.x+=(tx-plateG.rotation.x)*k;plateG.rotation.z+=(tz-plateG.rotation.z)*k;
+leds[1].material.emissiveIntensity=.5+.5*Math.sin(t0*4);
+hand.updateWorldMatrix(true,true);plateG.updateWorldMatrix(true,true);
+var hz=2.9+(1-w)*7.1,hy=3.1-1.1*b+(b<1?Math.abs(Math.sin(st*3.5))*.08:0),lean=.3*b;
+var hip=new V3(0,hy,hz),up=new V3(0,Math.cos(lean),-Math.sin(lean)),sc=hip.clone().add(up.clone().multiplyScalar(1.9));
+seg(torso,hip,sc);pelv.position.copy(hip);seg(neck,sc,sc.clone().add(up.clone().multiplyScalar(.45)));
+head.position.copy(sc).add(up.clone().multiplyScalar(.9));hair.position.copy(head.position).add(new V3(0,.12,.1));
+var ph=st*3.5;
+[-1,1].forEach(function(s,i){var L=limbs[i],p=ph+(s>0?0:Math.PI),sw=Math.sin(p);
+var hp=hip.clone().add(new V3(s*.4,0,0));
+var wf=new V3(s*.4,.15+Math.max(0,Math.cos(p))*.5,hz-sw*.9);
+var ef=m===1?pedals[i].getWorldPosition(new V3()).add(new V3(0,.2,0)):plateG.localToWorld(new V3(s*.5,.14,.15));
+var r=ik(hp,wf.lerp(ef,b),1.7,1.7,new V3(0,1,-.35));
+seg(L.th,hp,r[0]);seg(L.sh,r[0],r[1]);L.kn.position.copy(r[0]);
+var q=new THREE.Quaternion().slerp(m===1?new THREE.Quaternion():plateG.quaternion,b);
+L.ft.quaternion.copy(q);L.ft.position.copy(r[1]).add(new V3(0,-.07,-.2).applyQuaternion(q));
+var sp=sc.clone().add(new V3(s*.65,0,0));
+var wh=new V3(s*.9,sc.y-2.4,hz+sw*.6);
+var eh=m===0?hpedals[i].getWorldPosition(new V3()).add(new V3(0,.12,0)):new V3(s*.55,2.65,2.2);
+var a=ik(sp,wh.lerp(eh,b),1.55,1.55,new V3(s*.5,-1,.6));
+L.sj.position.copy(sp);seg(L.ua,sp,a[0]);seg(L.fa,a[0],a[1]);L.el.position.copy(a[0]);L.hd.position.copy(a[1])});
+tag.textContent=st<W?"Patient is walking in…":b<1?"Patient is sitting down…":exNames[m]+" exercise";
+}
+// state
+var anim=true,exp=0,expT=0,t0=0,view=null;
+function setP(id,on){document.getElementById(id).setAttribute("aria-pressed",String(on))}
+document.getElementById("bAnim").onclick=function(){anim=!anim;setP("bAnim",anim)};
+document.getElementById("bShell").onclick=function(){var on=shell.visible=!shell.visible;setP("bShell",on)};
+document.getElementById("bExp").onclick=function(){expT=expT?0:1;setP("bExp",!!expT)};
+var V={iso:[7,5.5,8],front:[0,2.6,11],side:[11,2.6,0],top:[0,13,.01]};
+var bs=document.getElementById("bSim"),be=document.getElementById("bEx"),exL=["Auto","Hand","Leg","Foot"];
+bs.onclick=function(){sim=!sim;setP("bSim",sim);bs.textContent=sim?"Stop simulation":"Simulate patient";H.visible=chair.visible=sim;
+if(sim){st=0;amp=0;ph2=0;curM=-1;expT=0;setP("bExp",false);view=new THREE.Vector3(10,6.5,13);ctl.target.set(0,2.6,2.5);tag.style.display="block"}
+else{ctl.target.set(0,2.2,0);tag.style.display="none";plateG.rotation.set(0,0,0);rol.rotation.x=0;view=new THREE.Vector3(7,5.5,8)}};
+be.onclick=function(){exSel=(exSel+1)%4;be.textContent="Exercise: "+exL[exSel]};
+document.querySelectorAll("[data-v]").forEach(function(b){b.onclick=function(){view=new THREE.Vector3().fromArray(V[b.dataset.v])}});
+// picking
+var ray=new THREE.Raycaster(),mp=new THREE.Vector2(),tag=document.getElementById("tag"),dn=null;
+cv.addEventListener("pointerdown",function(e){dn=[e.clientX,e.clientY]});
+cv.addEventListener("pointerup",function(e){if(!dn||Math.hypot(e.clientX-dn[0],e.clientY-dn[1])>5)return;
+var r=cv.getBoundingClientRect();mp.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mp,cam);
+var h=ray.intersectObjects(S.children,true).filter(function(x){return x.object.userData.name});
+if(h.length){tag.textContent=h[0].object.userData.name;tag.style.display="block"}else tag.style.display="none"});
+function size(){var w=cv.clientWidth,h=cv.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener("resize",size);size();
+var clk=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);var dt=clk.getDelta();
+if(sim){human(dt)}else if(anim){t0+=dt;hand.rotation.x=-t0*1.2;rollG.children[0].rotation.x+=0;rol.rotation.x=t0*2.4;
+plateG.rotation.x=Math.sin(t0*1.5)*.26;plateG.rotation.z=0;
+leds[1].material.emissiveIntensity=.5+.5*Math.sin(t0*4);leds[0].material.emissiveIntensity=.3;
+piez.forEach(function(p,i){p.material.emissiveIntensity=.3+.7*Math.max(0,Math.sin(t0*1.5+i*1.6))})}
+exp+=(expT-exp)*Math.min(1,dt*5);
+lid.position.y=3+exp*1.6;col.position.y=3.1+exp*3.2;rollG.position.y=1.9+exp*.9;plateG.position.y=.55-exp*.3;shell.position.y=1.5+exp*.2;
+if(view){cam.position.lerp(view,.12);if(cam.position.distanceTo(view)<.05)view=null}
+fixPed();ctl.update();R.render(S,cam)}
+loop();bs.onclick();
+})();
+</script>
+</body>
+</html>
